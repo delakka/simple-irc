@@ -1,0 +1,20 @@
+{
+    "Server":   "akka.test.io",
+    "Port":     ":6667",
+    "Channels": [
+        "Main",
+        "Dev"
+    ],
+    "Users": [
+        {
+            "Name": "usr123",
+            "Password": "pw",
+            "Info": "FULL_NAME"
+        },
+        {
+            "Name": "akka",
+            "Password": "pw",
+            "Info": "FULL_NAME"
+        }
+    ]
+}
