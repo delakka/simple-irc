@@ -5,16 +5,14 @@
         "Main",
         "Dev"
     ],
-    "Users": [
+    "Credentials": [
         {
-            "Name": "usr123",
-            "Password": "pw",
-            "Info": "FULL_NAME"
+            "Nick": "usr123",
+            "Password": "pw"
         },
         {
-            "Name": "akka",
-            "Password": "pw",
-            "Info": "FULL_NAME"
+            "Nick": "akka",
+            "Password": "pw"
         }
     ]
 }

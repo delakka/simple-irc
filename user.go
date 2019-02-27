@@ -1,10 +1,19 @@
 package main
 
-import "net"
+import (
+	"net"
+	"sync"
+)
 
-// An IRC user
+// User is a client who connected to the server
 type User struct {
 	Nick     string
+	Name     string
+	Host     string
+	RealName string
+	Password string
 	Conn     net.Conn
-	Channels map[*Channel]bool
+	Channels map[string]*Channel
+	MsgQ     chan string
+	Mutex    sync.RWMutex
 }
