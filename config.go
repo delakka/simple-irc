@@ -10,14 +10,11 @@ type Config struct {
 	Server   string
 	Port     string
 	Channels []string
-
-	Credentials []struct {
-		Nick     string
-		Password string
-	}
+	Password string
 }
 
-func newConfig(path string) *Config {
+// NewConfig creates a new config object from a json file
+func NewConfig(path string) *Config {
 	file, err := os.Open(path)
 	defer file.Close()
 	check(err)

@@ -1,7 +1,8 @@
 package main
 
 func main() {
-	cfg := newConfig("./config.json")
+	cfg := NewConfig("./config.json")
 
-	startServer(cfg)
+	server := NewServer(cfg)
+	server.Run()
 }

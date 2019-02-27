@@ -1,29 +1,34 @@
 package main
 
 import (
-	"bufio"
-	"log"
 	"net"
-	"strings"
+	"sync"
 )
 
 // Client is an accepted connection to the server
 type Client struct {
-	Conn net.Conn
+	Nick          string
+	Name          string
+	Host          string
+	RealName      string
+	Conn          net.Conn
+	Channels      map[string]*Channel
+	Mutex         sync.RWMutex
+	Authenticated bool
+	Registered    bool
 }
 
 func newClient(conn net.Conn) *Client {
-	return &Client{Conn: conn}
+	c := &Client{
+		Conn:          conn,
+		Channels:      make(map[string]*Channel),
+		Authenticated: false,
+		Registered:    false,
+	}
+
+	return c
 }
 
-func (c *Client) handle() {
-	reader := bufio.NewReader(c.Conn)
-	for {
-		message, _ := reader.ReadString('\n')
-		if len(message) == 0 {
-			continue
-		}
-		message = strings.TrimSpace(message)
-		log.Print("***MSG: ", string(message))
-	}
+func (c *Client) send(message string) {
+	c.Conn.Write([]byte(message))
 }

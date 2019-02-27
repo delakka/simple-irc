@@ -5,14 +5,5 @@
         "Main",
         "Dev"
     ],
-    "Credentials": [
-        {
-            "Nick": "usr123",
-            "Password": "pw"
-        },
-        {
-            "Nick": "akka",
-            "Password": "pw"
-        }
-    ]
+    "Password": "pw1!"
 }
