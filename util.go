@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strings"
 )
@@ -12,6 +13,19 @@ func check(err error) {
 }
 
 func parseMessage(message string) (string, []string) {
-	splitstr := strings.Split(message, " ")
-	return splitstr[0], splitstr[1:]
+	if len(message) != 0 {
+		splitstr := strings.Split(message, " ")
+		cmd := splitstr[0]
+		if len(splitstr) > 1 {
+			return cmd, splitstr[1:]
+		}
+		return cmd, []string{}
+	}
+	return "", []string{}
+}
+
+func buildMessage(prefix string, cmd string, params ...string) string {
+	message := fmt.Sprintf(":%s %s", prefix, cmd)
+	message += strings.Join(params, " ")
+	return message
 }

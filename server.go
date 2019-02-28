@@ -14,6 +14,7 @@ type Server struct {
 	Clients  []*Client
 	Password string
 	Port     string
+	Host     string
 }
 
 // NewServer instantiates a server
@@ -23,6 +24,7 @@ func NewServer(cfg *Config) *Server {
 		Clients:  make([]*Client, 0),
 		Password: cfg.Password,
 		Port:     cfg.Port,
+		Host:     cfg.Server,
 	}
 }
 
@@ -51,31 +53,38 @@ func (s *Server) acceptLoop() {
 
 func (s *Server) startReceiving() {
 	for {
-		for _, v := range s.Clients {
-			reader := bufio.NewReader(v.Conn)
+		for _, c := range s.Clients {
+			reader := bufio.NewReader(c.Conn)
 			for {
 				message, _ := reader.ReadString('\n')
 				if len(message) == 0 {
 					continue
 				}
 				message = strings.TrimSpace(message)
-				//v.MsgQ <- message
 				log.Print("***MSG: ", string(message))
+
 				cmd, params := parseMessage(message)
-				_, ok := commands[cmd]
-				if ok {
-					commands[cmd](params, v, s)
+				if _, ok := commands[cmd]; ok {
+					commands[cmd](params, c, s)
 				}
 			}
 		}
 	}
 }
 
-func (s *Server) startSending() {
-	for {
-		// TODO
-	}
-}
+// func (s *Server) startSending() {
+// 	for {
+// 		for _, c := range s.Clients {
+// 			select {
+// 			case msg <- c.Messages:
+// 				log.Print("[Sending] ", msg)
+// 				c.Conn.Write([]byte(msg + "\r\n"))
+// 			case <- c.Quit:
+// 				break;
+// 			}
+// 		}
+// 	}
+// }
 
 func (s *Server) isNickAvailable(nick string) bool {
 	for _, v := range s.Clients {
@@ -95,4 +104,12 @@ func (s *Server) auth(password string) bool {
 
 func (s *Server) addClient(c *Client) {
 	s.Clients = append(s.Clients, c)
+}
+
+func (s *Server) getChannel(name string) *Channel {
+	_, ok := s.Channels[name]
+	if !ok {
+		s.Channels[name] = newChannel(name)
+	}
+	return s.Channels[name]
 }

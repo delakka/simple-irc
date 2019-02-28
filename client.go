@@ -8,14 +8,15 @@ import (
 // Client is an accepted connection to the server
 type Client struct {
 	Nick          string
-	Name          string
-	Host          string
+	UserName      string
+	HostName      string
 	RealName      string
 	Conn          net.Conn
 	Channels      map[string]*Channel
 	Mutex         sync.RWMutex
 	Authenticated bool
 	Registered    bool
+	//Messages      chan string
 }
 
 func newClient(conn net.Conn) *Client {
@@ -30,5 +31,6 @@ func newClient(conn net.Conn) *Client {
 }
 
 func (c *Client) send(message string) {
-	c.Conn.Write([]byte(message))
+	//c.Messages <- message
+	c.Conn.Write([]byte(message + "\r\n"))
 }

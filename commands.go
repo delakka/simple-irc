@@ -1,6 +1,10 @@
 package main
 
-import "log"
+import (
+	"fmt"
+	"log"
+	"strings"
+)
 
 type commandHandler func([]string, *Client, *Server)
 
@@ -14,36 +18,59 @@ var commands = map[string]commandHandler{
 	"PRIVMSG": handlePRIVMSG,
 }
 
-func handleNICK(params []string, cl *Client, s *Server) {
-	if len(params) != 1 {
-		log.Print("NICK's param count is not 1")
-		cl.send("There should only be 1 parameter")
+func handleNICK(params []string, c *Client, s *Server) {
+	if len(params) == 0 {
+		//ERR_NONICKNAMEGIVEN
 		return
 	}
 
 	nick := params[0]
 	if !s.isNickAvailable(nick) {
-		log.Print("Nick already in use")
-		cl.send("Nick already in use")
+		//ERR_NICKNAMEINUSE
 		return
 	}
-	cl.Nick = nick
-	cl.send("Welcome, " + nick)
+	c.Nick = nick
 }
 
-func handleUSER(params []string, cl *Client, s *Server) {}
-
-func handlePASS(params []string, cl *Client, s *Server) {
-	if s.auth(params[0]) {
-		cl.Authenticated = true
+func handleUSER(params []string, c *Client, s *Server) {
+	if len(params) < 4 {
+		//ERR_NEEDMOREPARAMS
+		return
 	}
-	cl.send("Authenticated.")
+
+	c.UserName = params[0]
+	c.HostName = params[2]
+	c.RealName = params[3]
+
+	// send RPL_WELCOME
+	msg := fmt.Sprintf(":%s %s", s.Host, RPL_WELCOME)
+	msg = msg + " " + c.UserName + ": Welcome to the server!"
+	log.Print(msg)
+	c.send(msg)
 }
 
-func handleJOIN(params []string, cl *Client, s *Server) {}
+func handlePASS(params []string, c *Client, s *Server) {
+	if s.auth(params[0]) {
+		c.Authenticated = true
+	}
+	c.send("Authenticated.")
+}
 
-func handleNAMES(params []string, cl *Client, s *Server) {}
+func handleJOIN(params []string, c *Client, s *Server) {
+	chName := params[0]
+	if !strings.HasPrefix(chName, "#") {
+		chName = "#" + chName
+	}
+	ch := s.getChannel(chName)
+	ch.join(c)
 
-func handlePART(params []string, cl *Client, s *Server) {}
+	msg_join := fmt.Sprintf("%s!~%s@%s", c.UserName, c.UserName, s.Host)
+	msg_join = msg_join + " JOIN " + ch.Name
+	c.send(msg_join)
+}
 
-func handlePRIVMSG(params []string, cl *Client, s *Server) {}
+func handleNAMES(params []string, c *Client, s *Server) {}
+
+func handlePART(params []string, c *Client, s *Server) {}
+
+func handlePRIVMSG(params []string, c *Client, s *Server) {}
