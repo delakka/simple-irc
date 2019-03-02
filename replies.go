@@ -18,10 +18,11 @@ var (
 	}
 	RPL_ENDOFNAMES = Reply{
 		Numeric: "366",
+		Message: ":End of NAMES list",
 	}
 	ERR_NORECIPIENT = Reply{
 		Numeric: "411",
-		Message: ":No recipients were given",
+		Message: ":No recipients were found",
 	}
 	ERR_NOTEXTTOSEND = Reply{
 		Numeric: "412",

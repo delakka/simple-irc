@@ -17,7 +17,6 @@ type Client struct {
 	Mutex         sync.RWMutex
 	Authenticated bool
 	Registered    bool
-	//Messages      chan string
 }
 
 func newClient(conn net.Conn) *Client {
@@ -32,9 +31,27 @@ func newClient(conn net.Conn) *Client {
 }
 
 func (c *Client) send(message string) {
-	//c.Messages <- message
 	c.Conn.Write([]byte(message + "\r\n"))
 	log.Print("[>>] ", string(message))
+}
+
+func (c *Client) joinChannel(ch *Channel) {
+	c.Channels[ch.Name] = ch
+	log.Print("Added channel ", ch.Name, " to client ", c.Nick)
+}
+
+func (c *Client) leaveChannel(ch *Channel) {
+	if _, ok := c.Channels[ch.Name]; ok {
+		delete(c.Channels, ch.Name)
+	}
+}
+
+func (c *Client) setNick(nick string) {
+	for _, ch := range c.Channels {
+		delete(ch.Clients, c.Nick)
+		ch.Clients[nick] = c
+	}
+	c.Nick = nick
 }
 
 func (c *Client) in(clients []*Client) bool {
@@ -44,6 +61,15 @@ func (c *Client) in(clients []*Client) bool {
 		}
 	}
 	return false
+}
+
+func (c *Client) getIndex(clients []*Client) (int, bool) {
+	for i, v := range clients {
+		if v.Nick == c.Nick {
+			return i, true
+		}
+	}
+	return 0, false
 }
 
 func findClient(nick string, clients []*Client) (*Client, bool) {

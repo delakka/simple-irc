@@ -27,7 +27,6 @@ func (ch *Channel) setTopic(topic string) {
 func (ch *Channel) sendLoop() {
 	for message := range ch.MsgQ {
 		for _, v := range ch.Clients {
-
 			v.send(message)
 		}
 	}
@@ -35,18 +34,23 @@ func (ch *Channel) sendLoop() {
 
 func (ch *Channel) send(message string) {
 	ch.MsgQ <- message
+	// for _, v := range ch.Clients {
+	// 	v.send(message)
+	// }
 }
 
 func (ch *Channel) join(client *Client) {
 	ch.Clients[client.Nick] = client
+	client.joinChannel(ch)
+
 	log.Print("Added client ", client.Nick, " to channel ", ch.Name)
 }
 
 func (ch *Channel) leave(client *Client) {
-	_, ok := ch.Clients[client.Nick]
-	if ok {
+	if _, ok := ch.Clients[client.Nick]; ok {
 		delete(ch.Clients, client.Nick)
 	}
+	client.leaveChannel(ch)
 }
 
 func (ch *Channel) getClientNicks() []string {

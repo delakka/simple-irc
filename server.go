@@ -31,13 +31,13 @@ func NewServer(cfg *Config) *Server {
 // Run starts the server
 func (s *Server) Run() {
 	ln, err := net.Listen("tcp", s.Port)
+	// s.Host = ln.Addr().String()
 	defer ln.Close()
 	check(err)
 	log.Print("Listening on port ", s.Port)
 	s.Listener = ln
 
 	go s.receiveLoop()
-	// go s.startSending()
 	s.acceptLoop()
 }
 
@@ -96,6 +96,21 @@ func (s *Server) addClient(c *Client) {
 	}
 	s.Clients = append(s.Clients, c)
 	log.Print("Added client ", c.Nick, " to the server")
+}
+
+func (s *Server) removeClient(c *Client) {
+	if !c.in(s.Clients) {
+		log.Print("Client is not part of the server")
+		return
+	}
+	// leave all channels
+	for _, ch := range s.Channels {
+		ch.leave(c)
+	}
+	// leave server
+	if i, ok := c.getIndex(s.Clients); ok {
+		s.Clients = append(s.Clients[:i], s.Clients[i+1:]...)
+	}
 }
 
 func (s *Server) getChannel(name string) *Channel {

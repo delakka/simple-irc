@@ -16,6 +16,7 @@ var commands = map[string]commandHandler{
 	"NAMES":   handleNAMES,
 	"PART":    handlePART,
 	"PRIVMSG": handlePRIVMSG,
+	"QUIT":    handleQUIT,
 }
 
 func handleNICK(params []string, c *Client, s *Server) {
@@ -31,7 +32,7 @@ func handleNICK(params []string, c *Client, s *Server) {
 		c.send(err)
 		return
 	}
-	c.Nick = nick
+	c.setNick(nick)
 	log.Print("NICK set for client (", c.Conn.RemoteAddr(), "): ", nick)
 }
 
@@ -80,23 +81,29 @@ func handleJOIN(params []string, c *Client, s *Server) {
 	}
 
 	// send RPL_TOPIC
-	topicMessage := buildMessage(":"+s.Host, RPL_TOPIC.Numeric, c.Nick, ch.Name, ":"+ch.Topic)
-	ch.MsgQ <- topicMessage
+	topicMessage := buildMessage(fmt.Sprintf(":%s", s.Host), RPL_TOPIC.Numeric, c.Nick, ch.Name, fmt.Sprintf(":%s", ch.Topic))
+	c.send(topicMessage)
+	sendNamesToChannel(ch, c, s)
 }
 
 func handleNAMES(params []string, c *Client, s *Server) {
 	for _, p := range params {
 		for _, ch := range s.Channels {
 			if p == ch.Name {
-				clients := ch.getClientNicks()
-				clientStr := strings.Join(clients, " ")
-				log.Print("[D] clientlist: ", clientStr)
-				message := buildMessage(":"+s.Host, RPL_NAMREPLY.Numeric, c.Nick, "=", ch.Name, clientStr)
-				c.send(message)
+				sendNamesToChannel(ch, c, s)
 			}
 		}
 	}
-	endMessage := buildMessage(":"+s.Host, RPL_ENDOFNAMES.Numeric, c.Nick, RPL_ENDOFNAMES.Message)
+}
+
+func sendNamesToChannel(ch *Channel, c *Client, s *Server) {
+	clients := ch.getClientNicks()
+	clientStr := strings.Join(clients, " ")
+
+	message := buildMessage(fmt.Sprintf(":%s", s.Host), RPL_NAMREPLY.Numeric, c.Nick, "=", ch.Name, clientStr)
+	c.send(message)
+
+	endMessage := buildMessage(fmt.Sprintf(":%s", s.Host), RPL_ENDOFNAMES.Numeric, c.Nick, ch.Name, RPL_ENDOFNAMES.Message)
 	c.send(endMessage)
 }
 
@@ -139,15 +146,30 @@ func handlePRIVMSG(params []string, c *Client, s *Server) {
 	log.Print("Message to relay: ", message)
 
 	if strings.HasPrefix(targetName, "#") {
-		prefix := fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName)
-		privMessage := buildMessage(prefix, "PRIVMSG", c.Channels[targetName].Name, message)
-		c.Channels[targetName].MsgQ <- privMessage
+		if ch, ok := c.Channels[targetName]; ok {
+			prefix := fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName)
+			privMessage := buildMessage(prefix, "PRIVMSG", ch.Name, message)
+			ch.MsgQ <- privMessage
+		} else {
+			err := buildMessage(ERR_NORECIPIENT.Numeric, c.Nick, ERR_NORECIPIENT.Message)
+			c.send(err)
+		}
 	} else {
 		if tar, ok := findClient(targetName, s.Clients); ok {
+			log.Print("target found: ", tar.Nick)
 			prefix := fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName)
 			privMessage := buildMessage(prefix, "PRIVMSG", tar.Nick, message)
 			tar.send(privMessage)
+		} else {
+			err := buildMessage(ERR_NORECIPIENT.Numeric, c.Nick, ERR_NORECIPIENT.Message)
+			c.send(err)
 		}
 	}
 
+}
+
+func handleQUIT(params []string, c *Client, s *Server) {
+	log.Print("Closing the connection for client ", c.Nick, c.Conn.RemoteAddr().String())
+	s.removeClient(c)
+	c.Conn.Close()
 }
