@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"strings"
 )
@@ -24,8 +23,7 @@ func parseMessage(message string) (string, []string) {
 	return "", []string{}
 }
 
-func buildMessage(prefix string, cmd string, params ...string) string {
-	message := fmt.Sprintf(":%s %s", prefix, cmd)
-	message += strings.Join(params, " ")
+func buildMessage(parts ...string) string {
+	message := strings.Join(parts, " ")
 	return message
 }

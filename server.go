@@ -36,7 +36,7 @@ func (s *Server) Run() {
 	log.Print("Listening on port ", s.Port)
 	s.Listener = ln
 
-	go s.startReceiving()
+	go s.receiveLoop()
 	// go s.startSending()
 	s.acceptLoop()
 }
@@ -51,7 +51,7 @@ func (s *Server) acceptLoop() {
 	}
 }
 
-func (s *Server) startReceiving() {
+func (s *Server) receiveLoop() {
 	for {
 		for _, c := range s.Clients {
 			reader := bufio.NewReader(c.Conn)
@@ -61,30 +61,17 @@ func (s *Server) startReceiving() {
 					continue
 				}
 				message = strings.TrimSpace(message)
-				log.Print("***MSG: ", string(message))
+				log.Print("[<<] ", string(message))
 
 				cmd, params := parseMessage(message)
 				if _, ok := commands[cmd]; ok {
+					log.Print(cmd, " command received from client ", c.Nick, " with params: ", strings.Join(params, " "))
 					commands[cmd](params, c, s)
 				}
 			}
 		}
 	}
 }
-
-// func (s *Server) startSending() {
-// 	for {
-// 		for _, c := range s.Clients {
-// 			select {
-// 			case msg <- c.Messages:
-// 				log.Print("[Sending] ", msg)
-// 				c.Conn.Write([]byte(msg + "\r\n"))
-// 			case <- c.Quit:
-// 				break;
-// 			}
-// 		}
-// 	}
-// }
 
 func (s *Server) isNickAvailable(nick string) bool {
 	for _, v := range s.Clients {
@@ -103,13 +90,20 @@ func (s *Server) auth(password string) bool {
 }
 
 func (s *Server) addClient(c *Client) {
+	if c.in(s.Clients) {
+		log.Print("Client was already added to the server")
+		return
+	}
 	s.Clients = append(s.Clients, c)
+	log.Print("Added client ", c.Nick, " to the server")
 }
 
 func (s *Server) getChannel(name string) *Channel {
 	_, ok := s.Channels[name]
 	if !ok {
+		log.Print("Channel doesn't exist yet, creating a new one with the name ", name)
 		s.Channels[name] = newChannel(name)
+		go s.Channels[name].sendLoop()
 	}
 	return s.Channels[name]
 }

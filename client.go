@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net"
 	"sync"
 )
@@ -33,4 +34,24 @@ func newClient(conn net.Conn) *Client {
 func (c *Client) send(message string) {
 	//c.Messages <- message
 	c.Conn.Write([]byte(message + "\r\n"))
+	log.Print("[>>] ", string(message))
+}
+
+func (c *Client) in(clients []*Client) bool {
+	for _, v := range clients {
+		if v.Nick == c.Nick {
+			return true
+		}
+	}
+	return false
+}
+
+func findClient(nick string, clients []*Client) (*Client, bool) {
+	for _, c := range clients {
+		if c.Nick == nick {
+			return c, true
+		}
+	}
+	return &Client{}, false
+
 }
