@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	"io"
 	"log"
 	"net"
 	"strings"
@@ -15,6 +15,7 @@ type Server struct {
 	Password string
 	Port     string
 	Host     string
+	Alive    bool
 }
 
 // NewServer instantiates a server
@@ -25,6 +26,7 @@ func NewServer(cfg *Config) *Server {
 		Password: cfg.Password,
 		Port:     cfg.Port,
 		Host:     cfg.Server,
+		Alive:    true,
 	}
 }
 
@@ -41,8 +43,9 @@ func (s *Server) Run() {
 }
 
 func (s *Server) acceptLoop() {
-	for {
+	for s.Alive {
 		conn, err := s.Listener.Accept()
+		defer conn.Close()
 		check(err)
 		log.Print("A new user connected with the remote IP: ", conn.RemoteAddr())
 		client := newClient(conn)
@@ -52,18 +55,34 @@ func (s *Server) acceptLoop() {
 }
 
 func (s *Server) receiveLoop() {
-	for {
+	for s.Alive {
 		for _, c := range s.Clients {
-			// buf := make([]byte, 1024)
-			reader := bufio.NewReader(c.Conn)
-			for {
-				// log.Print("C: ", c.Conn.RemoteAddr().String())
-				message, _ := reader.ReadString('\n')
-				// log.Print("ML: ", len(message), " M: ", message)
+			buffer := make([]byte, 1024)
+			n, err := c.Conn.Read(buffer)
+			if err != nil {
+				if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+					continue
+				}
+				if err == io.EOF {
+					log.Print("EOF reached -> connection was terminated by the client")
+					s.removeClient(c)
+					c.Conn.Close()
+					continue
+				}
+				log.Print("Error: ", err)
+			}
+
+			if n == 0 {
+				continue
+			}
+
+			messages := string(buffer[:n])
+			for _, message := range strings.Split(messages, "\r\n") {
 				if len(message) == 0 {
 					continue
 				}
 				message = strings.TrimSpace(message)
+
 				log.Print("[<<] ", string(message))
 
 				cmd, params := parseMessage(message)
