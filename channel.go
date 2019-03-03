@@ -32,11 +32,12 @@ func (ch *Channel) sendLoop() {
 	}
 }
 
-func (ch *Channel) send(message string) {
-	ch.MsgQ <- message
-	// for _, v := range ch.Clients {
-	// 	v.send(message)
-	// }
+func (ch *Channel) send(c *Client, message string) {
+	for _, v := range ch.Clients {
+		if v.Conn != c.Conn {
+			v.send(message)
+		}
+	}
 }
 
 func (ch *Channel) join(client *Client) {

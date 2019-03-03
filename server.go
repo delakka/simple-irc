@@ -31,7 +31,6 @@ func NewServer(cfg *Config) *Server {
 // Run starts the server
 func (s *Server) Run() {
 	ln, err := net.Listen("tcp", s.Port)
-	// s.Host = ln.Addr().String()
 	defer ln.Close()
 	check(err)
 	log.Print("Listening on port ", s.Port)
@@ -47,6 +46,7 @@ func (s *Server) acceptLoop() {
 		check(err)
 		log.Print("A new user connected with the remote IP: ", conn.RemoteAddr())
 		client := newClient(conn)
+		go client.sendLoop()
 		s.addClient(client)
 	}
 }
@@ -54,9 +54,12 @@ func (s *Server) acceptLoop() {
 func (s *Server) receiveLoop() {
 	for {
 		for _, c := range s.Clients {
+			// buf := make([]byte, 1024)
 			reader := bufio.NewReader(c.Conn)
 			for {
+				// log.Print("C: ", c.Conn.RemoteAddr().String())
 				message, _ := reader.ReadString('\n')
+				// log.Print("ML: ", len(message), " M: ", message)
 				if len(message) == 0 {
 					continue
 				}
@@ -118,7 +121,6 @@ func (s *Server) getChannel(name string) *Channel {
 	if !ok {
 		log.Print("Channel doesn't exist yet, creating a new one with the name ", name)
 		s.Channels[name] = newChannel(name)
-		go s.Channels[name].sendLoop()
 	}
 	return s.Channels[name]
 }

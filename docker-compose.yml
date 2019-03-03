@@ -1,0 +1,7 @@
+version: "3.7"
+
+services:
+  irc:
+    build: .
+    ports:
+      - "6667:6667"

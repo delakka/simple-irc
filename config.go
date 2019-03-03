@@ -9,7 +9,6 @@ import (
 type Config struct {
 	Server   string
 	Port     string
-	Channels []string
 	Password string
 }
 

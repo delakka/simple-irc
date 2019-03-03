@@ -8,6 +8,7 @@ import (
 
 type commandHandler func([]string, *Client, *Server)
 
+// A map of the commands currently implemented and their handlers
 var commands = map[string]commandHandler{
 	"NICK":    handleNICK,
 	"USER":    handleUSER,
@@ -19,7 +20,17 @@ var commands = map[string]commandHandler{
 	"QUIT":    handleQUIT,
 }
 
+func handlePASS(params []string, c *Client, s *Server) {
+	if s.auth(params[0]) {
+		c.Authenticated = true
+	}
+	log.Print("Client ", c.Nick, " authenticated")
+}
+
 func handleNICK(params []string, c *Client, s *Server) {
+	if !c.Authenticated {
+		return
+	}
 	if len(params) == 0 {
 		err := buildMessage(ERR_NONICKNAMEGIVEN.Numeric, c.Nick, ERR_NONICKNAMEGIVEN.Message)
 		c.send(err)
@@ -32,11 +43,20 @@ func handleNICK(params []string, c *Client, s *Server) {
 		c.send(err)
 		return
 	}
+
+	// send NICK
+	message := buildMessage(fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName), "NICK", nick)
+	c.send(message)
+
 	c.setNick(nick)
+
 	log.Print("NICK set for client (", c.Conn.RemoteAddr(), "): ", nick)
 }
 
 func handleUSER(params []string, c *Client, s *Server) {
+	if !c.Authenticated {
+		return
+	}
 	if len(params) < 4 {
 		err := buildMessage(ERR_NEEDMOREPARAMS.Numeric, c.Nick, ERR_NEEDMOREPARAMS.Message)
 		c.send(err)
@@ -46,20 +66,17 @@ func handleUSER(params []string, c *Client, s *Server) {
 	c.UserName = params[0]
 	c.HostName = params[2]
 	c.RealName = strings.Join(params[3:], " ")
+	c.Registered = true
 
 	// send RPL_WELCOME
 	message := buildMessage(s.Host, RPL_WELCOME.Numeric, c.Nick, RPL_WELCOME.Message)
 	c.send(message)
 }
 
-func handlePASS(params []string, c *Client, s *Server) {
-	if s.auth(params[0]) {
-		c.Authenticated = true
-	}
-	log.Print("Client ", c.Nick, " authenticated")
-}
-
 func handleJOIN(params []string, c *Client, s *Server) {
+	if !c.Registered {
+		return
+	}
 	if len(params) < 1 {
 		err := buildMessage(ERR_NEEDMOREPARAMS.Numeric, c.Nick, ERR_NEEDMOREPARAMS.Message)
 		c.send(err)
@@ -74,7 +91,7 @@ func handleJOIN(params []string, c *Client, s *Server) {
 	ch.join(c)
 
 	// send JOIN
-	joinPrefix := fmt.Sprintf("%s!%s@%s", c.Nick, c.Nick, c.HostName)
+	joinPrefix := fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName)
 	joinMessage := buildMessage(joinPrefix, "JOIN", ch.Name)
 	for _, u := range ch.Clients {
 		u.send(joinMessage)
@@ -87,6 +104,9 @@ func handleJOIN(params []string, c *Client, s *Server) {
 }
 
 func handleNAMES(params []string, c *Client, s *Server) {
+	if !c.Registered {
+		return
+	}
 	for _, p := range params {
 		for _, ch := range s.Channels {
 			if p == ch.Name {
@@ -108,6 +128,9 @@ func sendNamesToChannel(ch *Channel, c *Client, s *Server) {
 }
 
 func handlePART(params []string, c *Client, s *Server) {
+	if !c.Registered {
+		return
+	}
 	if len(params) == 0 {
 		err := buildMessage(ERR_NEEDMOREPARAMS.Numeric, c.Nick, ERR_NEEDMOREPARAMS.Message)
 		c.send(err)
@@ -115,7 +138,7 @@ func handlePART(params []string, c *Client, s *Server) {
 	}
 
 	chList := strings.Split(params[0], ",")
-	suffix := ""
+	suffix := "bye!"
 	if len(params) > 1 {
 		suffix = strings.Join(params[1:], " ")
 	}
@@ -125,8 +148,8 @@ func handlePART(params []string, c *Client, s *Server) {
 		for _, ch := range c.Channels {
 			if ch.Name == p {
 				prefix := fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName)
-				message := buildMessage(prefix, "PART", suffix)
-				ch.MsgQ <- message
+				message := buildMessage(prefix, "PART", ch.Name, suffix)
+				c.send(message)
 				ch.leave(c)
 			}
 		}
@@ -134,6 +157,9 @@ func handlePART(params []string, c *Client, s *Server) {
 }
 
 func handlePRIVMSG(params []string, c *Client, s *Server) {
+	if !c.Registered {
+		return
+	}
 	if len(params) < 2 {
 		err := buildMessage(ERR_NEEDMOREPARAMS.Numeric, c.Nick, ERR_NEEDMOREPARAMS.Message)
 		c.send(err)
@@ -149,7 +175,7 @@ func handlePRIVMSG(params []string, c *Client, s *Server) {
 		if ch, ok := c.Channels[targetName]; ok {
 			prefix := fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName)
 			privMessage := buildMessage(prefix, "PRIVMSG", ch.Name, message)
-			ch.MsgQ <- privMessage
+			ch.send(c, privMessage)
 		} else {
 			err := buildMessage(ERR_NORECIPIENT.Numeric, c.Nick, ERR_NORECIPIENT.Message)
 			c.send(err)

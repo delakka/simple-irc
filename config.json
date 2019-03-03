@@ -1,9 +1,5 @@
 {
     "Server":   "akka.test.io",
     "Port":     ":6667",
-    "Channels": [
-        "Main",
-        "Dev"
-    ],
     "Password": "pw1!"
 }
