@@ -77,30 +77,31 @@ func handleJOIN(params []string, c *Client, s *Server) {
 	if !c.Registered {
 		return
 	}
-	if len(params) < 1 {
+	if len(params) == 0 {
 		err := buildMessage(ERR_NEEDMOREPARAMS.Numeric, c.Nick, ERR_NEEDMOREPARAMS.Message)
 		c.send(err)
 		return
 	}
+	channels := strings.Split(params[0], ",")
+	for _, channelName := range channels {
+		if !strings.HasPrefix(channelName, "#") {
+			channelName = "#" + channelName
+		}
+		ch := s.getChannel(channelName)
+		ch.join(c)
 
-	channelName := params[0]
-	if !strings.HasPrefix(channelName, "#") {
-		channelName = "#" + channelName
+		// send JOIN
+		joinPrefix := fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName)
+		joinMessage := buildMessage(joinPrefix, "JOIN", ch.Name)
+		for _, u := range ch.Clients {
+			u.send(joinMessage)
+		}
+
+		// send RPL_TOPIC
+		topicMessage := buildMessage(fmt.Sprintf(":%s", s.Host), RPL_TOPIC.Numeric, c.Nick, ch.Name, fmt.Sprintf(":%s", ch.Topic))
+		c.send(topicMessage)
+		sendNamesToChannel(ch, c, s)
 	}
-	ch := s.getChannel(channelName)
-	ch.join(c)
-
-	// send JOIN
-	joinPrefix := fmt.Sprintf(":%s!%s@%s", c.Nick, c.Nick, c.HostName)
-	joinMessage := buildMessage(joinPrefix, "JOIN", ch.Name)
-	for _, u := range ch.Clients {
-		u.send(joinMessage)
-	}
-
-	// send RPL_TOPIC
-	topicMessage := buildMessage(fmt.Sprintf(":%s", s.Host), RPL_TOPIC.Numeric, c.Nick, ch.Name, fmt.Sprintf(":%s", ch.Topic))
-	c.send(topicMessage)
-	sendNamesToChannel(ch, c, s)
 }
 
 func handleNAMES(params []string, c *Client, s *Server) {
