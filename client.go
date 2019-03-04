@@ -8,13 +8,13 @@ import (
 
 // Client is an accepted connection to the server
 type Client struct {
-	Nick          string
-	UserName      string
-	HostName      string
-	RealName      string
-	Conn          net.Conn
-	Channels      map[string]*Channel
-	Mutex         sync.RWMutex
+	Nick     string
+	UserName string
+	HostName string
+	RealName string
+	Conn     net.Conn
+	Channels map[string]*Channel
+	sync.RWMutex
 	Authenticated bool
 	Registered    bool
 	Messages      chan string
@@ -44,18 +44,23 @@ func (c *Client) send(message string) {
 }
 
 func (c *Client) joinChannel(ch *Channel) {
+	c.Lock()
 	c.Channels[ch.Name] = ch
+	c.Unlock()
 	log.Print("Added channel ", ch.Name, " to client ", c.Nick)
 }
 
 func (c *Client) leaveChannel(ch *Channel) {
 	if _, ok := c.Channels[ch.Name]; ok {
+
 		delete(c.Channels, ch.Name)
 	}
 }
 
 func (c *Client) setNick(nick string) {
 	for _, ch := range c.Channels {
+		ch.Lock()
+		defer ch.Unlock()
 		delete(ch.Clients, c.Nick)
 		ch.Clients[nick] = c
 	}

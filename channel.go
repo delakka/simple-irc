@@ -1,6 +1,9 @@
 package main
 
-import "log"
+import (
+	"log"
+	"sync"
+)
 
 // Channel represents a channel on an IRC server
 type Channel struct {
@@ -8,6 +11,7 @@ type Channel struct {
 	Topic   string
 	Clients map[string]*Client
 	MsgQ    chan string
+	sync.Mutex
 }
 
 func newChannel(name string) *Channel {
@@ -41,7 +45,9 @@ func (ch *Channel) send(c *Client, message string) {
 }
 
 func (ch *Channel) join(client *Client) {
+	ch.Lock()
 	ch.Clients[client.Nick] = client
+	ch.Unlock()
 	client.joinChannel(ch)
 
 	log.Print("Added client ", client.Nick, " to channel ", ch.Name)

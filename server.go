@@ -42,6 +42,11 @@ func (s *Server) Run() {
 	s.acceptLoop()
 }
 
+// Shutdown shuts down the server
+func (s *Server) Shutdown() {
+	s.Alive = false
+}
+
 func (s *Server) acceptLoop() {
 	for s.Alive {
 		conn, err := s.Listener.Accept()

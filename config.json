@@ -1,5 +1,5 @@
 {
-    "Server":   "akka.test.io",
+    "Server":   "irc.akka.io",
     "Port":     ":6667",
     "Password": "pw1!"
 }

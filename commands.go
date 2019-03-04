@@ -21,10 +21,20 @@ var commands = map[string]commandHandler{
 }
 
 func handlePASS(params []string, c *Client, s *Server) {
+	if len(params) == 0 {
+		err := buildMessage(ERR_NEEDMOREPARAMS.Numeric, c.Nick, ERR_NEEDMOREPARAMS.Message)
+		c.send(err)
+		return
+	}
 	if s.auth(params[0]) {
 		c.Authenticated = true
+		log.Print("Client ", c.Nick, " authenticated")
+		return
 	}
-	log.Print("Client ", c.Nick, " authenticated")
+	if !c.Authenticated {
+		s.removeClient(c)
+		c.Conn.Close()
+	}
 }
 
 func handleNICK(params []string, c *Client, s *Server) {
@@ -108,9 +118,10 @@ func handleNAMES(params []string, c *Client, s *Server) {
 	if !c.Registered {
 		return
 	}
-	for _, p := range params {
+	channels := strings.Split(params[0], ",")
+	for _, chname := range channels {
 		for _, ch := range s.Channels {
-			if p == ch.Name {
+			if chname == ch.Name {
 				sendNamesToChannel(ch, c, s)
 			}
 		}
